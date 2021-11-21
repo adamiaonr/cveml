@@ -206,6 +206,11 @@ int OV767X::bytesPerPixel() const
   return _bytesPerPixel;
 }
 
+bool OV767X::isGrayscale() const
+{
+  return _grayscale;
+}
+
 //
 // Optimized Data Reading Explanation:
 //

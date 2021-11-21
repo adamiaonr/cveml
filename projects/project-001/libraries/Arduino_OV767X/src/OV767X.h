@@ -54,6 +54,7 @@ public:
   int height() const;
   int bitsPerPixel() const;
   int bytesPerPixel() const;
+  bool isGrayscale() const;
 
   void readFrame(void* buffer);
 
