@@ -28,50 +28,62 @@
 #include <stdlib.h>
 
 /* Constant variables ------------------------------------------------------- */
-#define EI_CAMERA_RAW_FRAME_BUFFER_COLS     160
-#define EI_CAMERA_RAW_FRAME_BUFFER_ROWS     120
+#define EI_CAMERA_RAW_FRAME_BUFFER_COLS     176
+#define EI_CAMERA_RAW_FRAME_BUFFER_ROWS     144
+
+// intermediate width and height (i.e., crop width and height)
+#define EI_CAMERA_CROP_WIDTH  96
+#define EI_CAMERA_CROP_HEIGHT 96
 
 #define DWORD_ALIGN_PTR(a)   ((a & 0x3) ?(((uintptr_t)a + 0x4) & ~(uintptr_t)0x3) : a)
 
 /* Edge Impulse ------------------------------------------------------------- */
-class OV7675 : public OV767X {
+class OV7670 : public OV767X {
     public:
         int begin(int resolution, int format, int fps);
-        void readFrame(void* buffer);
+        void readFrame(void* buffer, const int crop_width = 0, const int crop_height = 0);
 
     private:
-        int vsyncPin;
-        int hrefPin;
-        int pclkPin;
-        int xclkPin;
+        // pin numbers for VSYNC, HREF, PCLK, XCLK (not used in the code ?)
+        // in my OV7670 model, names are a bit different :
+        //  - lib name  : my model's name
+        //  - VSYNC     : VS
+        //  - HREF      : HS
+        //  - PCLK      : PLK
+        //  - XCLK      : XLK 
+        int m_vsyncPin;
+        int m_hrefPin;
+        int m_pclkPin;
+        int m_xclkPin;
 
-        volatile uint32_t* vsyncPort;
-        uint32_t vsyncMask;
-        volatile uint32_t* hrefPort;
-        uint32_t hrefMask;
-        volatile uint32_t* pclkPort;
-        uint32_t pclkMask;
+        // ports and masks for 'sync pins', i.e. pins that delimit frames (VSYNC) and frame rows (HREF)
+        volatile uint32_t*  m_vsyncPort;
+        uint32_t            m_vsyncMask;
+        volatile uint32_t*  m_hrefPort;
+        uint32_t            m_hrefMask;
+        volatile uint32_t*  m_pclkPort;
+        uint32_t            m_pclkMask;
 
-        uint16_t width;
-        uint16_t height;
-        uint8_t bytes_per_pixel;
-        uint16_t bytes_per_row;
-        uint8_t buf_rows;
-        uint16_t buf_size;
-        uint8_t resize_height;
-        uint8_t *raw_buf;
-        void *buf_mem;
-        uint8_t *intrp_buf;
-        uint8_t *buf_limit;
+        uint16_t    m_width;
+        uint16_t    m_height;
+        uint8_t     m_bytes_per_pixel;
+        uint16_t    m_bytes_per_row;
+        uint8_t     m_buf_rows;
+        uint16_t    m_buf_size;
+        uint8_t     m_resize_height;
+        uint8_t*    m_raw_buf;
+        void*       m_buf_mem;
+        uint8_t*    m_intrp_buf;
+        uint8_t*    m_buf_limit;
 
-        void readBuf();
+        void readBuf(const int buf_rows);
         int allocate_scratch_buffs();
         int deallocate_scratch_buffs();
 };
 
 typedef struct {
-	size_t width;
-	size_t height;
+    size_t width;
+    size_t height;
 } ei_device_resize_resolutions_t;
 
 /**
@@ -111,7 +123,7 @@ void ei_printf(const char *format, ...) {
 }
 
 /* Private variables ------------------------------------------------------- */
-static OV7675 Cam;
+static OV7670 Cam;
 static bool is_initialised = false;
 
 /*
@@ -130,7 +142,6 @@ bool ei_camera_init(void);
 void ei_camera_deinit(void);
 bool ei_camera_capture(uint32_t img_width, uint32_t img_height, uint8_t *buf);
 bool ei_camera_capture(uint32_t img_width, uint32_t img_height, uint8_t *out_buf) ;
-int calculate_resize_dimensions(uint32_t out_width, uint32_t out_height, uint32_t *resize_col_sz, uint32_t *resize_row_sz, bool *do_resize);
 void resizeImage(int srcWidth, int srcHeight, uint8_t *srcImage, int dstWidth, int dstHeight, uint8_t *dstImage, int iBpp);
 void cropImage(int srcWidth, int srcHeight, uint8_t *srcImage, int startX, int startY, int dstWidth, int dstHeight, uint8_t *dstImage, int iBpp);
 
@@ -175,19 +186,9 @@ void loop()
             break;
         }
 
-        // choose resize dimensions
-        uint32_t resize_col_sz;
-        uint32_t resize_row_sz;
-        bool do_resize = false;
-        int res = calculate_resize_dimensions(EI_CLASSIFIER_INPUT_WIDTH, EI_CLASSIFIER_INPUT_HEIGHT, &resize_col_sz, &resize_row_sz, &do_resize);
-        if (res) {
-            ei_printf("ERR: Failed to calculate resize dimensions (%d)\r\n", res);
-            break;
-        }
-
         void *snapshot_mem = NULL;
         uint8_t *snapshot_buf = NULL;
-        snapshot_mem = ei_malloc(resize_col_sz*resize_row_sz*2);
+        snapshot_mem = ei_malloc(EI_CLASSIFIER_INPUT_WIDTH * EI_CLASSIFIER_INPUT_HEIGHT * 1);
         if(snapshot_mem == NULL) {
             ei_printf("failed to create snapshot_mem\r\n");
             break;
@@ -220,6 +221,16 @@ void loop()
         for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++) {
             ei_printf("    %s: \t%f\r\n", result.classification[ix].label, result.classification[ix].value);
         }
+
+        Serial.print("\nimg : ");
+        for (int i = 0; i < EI_CLASSIFIER_INPUT_WIDTH * EI_CLASSIFIER_INPUT_HEIGHT; ++i)
+        {
+          char pixel[4];
+          sprintf(pixel, "%d ", ei_camera_capture_out[i]);
+          Serial.print(pixel);
+        }
+        Serial.println("");
+        
 #if EI_CLASSIFIER_HAS_ANOMALY == 1
             ei_printf("    anomaly score: %f\r\n", result.anomaly);
 #endif
@@ -236,38 +247,6 @@ void loop()
 }
 
 /**
- * @brief      Determine whether to resize and to which dimension
- *
- * @param[in]  out_width     width of output image
- * @param[in]  out_height    height of output image
- * @param[out] resize_col_sz       pointer to frame buffer's column/width value
- * @param[out] resize_row_sz       pointer to frame buffer's rows/height value
- * @param[out] do_resize     returns whether to resize (or not)
- *
- */
-int calculate_resize_dimensions(uint32_t out_width, uint32_t out_height, uint32_t *resize_col_sz, uint32_t *resize_row_sz, bool *do_resize)
-{
-    size_t list_size = 2;
-    const ei_device_resize_resolutions_t list[list_size] = { {42,32}, {128,96} };
-
-    // (default) conditions
-    *resize_col_sz = EI_CAMERA_RAW_FRAME_BUFFER_COLS;
-    *resize_row_sz = EI_CAMERA_RAW_FRAME_BUFFER_ROWS;
-    *do_resize = false;
-
-    for (size_t ix = 0; ix < list_size; ix++) {
-        if ((out_width <= list[ix].width) && (out_height <= list[ix].height)) {
-            *resize_col_sz = list[ix].width;
-            *resize_row_sz = list[ix].height;
-            *do_resize = true;
-            break;
-        }
-    }
-
-    return 0;
-}
-
-/**
  * @brief   Setup image sensor & start streaming
  *
  * @retval  false if initialisation failed
@@ -275,7 +254,7 @@ int calculate_resize_dimensions(uint32_t out_width, uint32_t out_height, uint32_
 bool ei_camera_init(void) {
     if (is_initialised) return true;
     
-    if (!Cam.begin(QQVGA, RGB565, 1)) { // VGA downsampled to QQVGA (OV7675)
+    if (!Cam.begin(QCIF, GRAYSCALE, 1)) {
         ei_printf("ERR: Failed to initialize camera\r\n");
         return false;
     }
@@ -317,38 +296,7 @@ bool ei_camera_capture(uint32_t img_width, uint32_t img_height, uint8_t *out_buf
         return false;
     }
 
-    // choose resize dimensions
-    int res = calculate_resize_dimensions(img_width, img_height, &resize_col_sz, &resize_row_sz, &do_resize);
-    if (res) {
-        ei_printf("ERR: Failed to calculate resize dimensions (%d)\r\n", res);
-        return false;
-    }
-
-    if ((img_width != resize_col_sz)
-        || (img_height != resize_row_sz)) {
-        do_crop = true;
-    }
-
-    Cam.readFrame(out_buf); // captures image and resizes
-
-    if (do_crop) {
-        uint32_t crop_col_sz;
-        uint32_t crop_row_sz;
-        uint32_t crop_col_start;
-        uint32_t crop_row_start;
-        crop_row_start = (resize_row_sz - img_height) / 2;
-        crop_col_start = (resize_col_sz - img_width) / 2;
-        crop_col_sz = img_width;
-        crop_row_sz = img_height;
-
-        //ei_printf("crop cols: %d, rows: %d\r\n", crop_col_sz,crop_row_sz);
-        cropImage(resize_col_sz, resize_row_sz,
-                out_buf,
-                crop_col_start, crop_row_start,
-                crop_col_sz, crop_row_sz,
-                out_buf,
-                16);
-    }
+    Cam.readFrame(out_buf, EI_CAMERA_CROP_WIDTH, EI_CAMERA_CROP_HEIGHT); // captures image, crops and resizes
 
     // The following variables should always be assigned
     // if this routine is to return true
@@ -368,26 +316,21 @@ bool ei_camera_capture(uint32_t img_width, uint32_t img_height, uint8_t *out_buf
  * @param[out]  out_buf      pointer to store output image
  */
 int ei_camera_cutout_get_data(size_t offset, size_t length, float *out_ptr) {
-    size_t pixel_ix = offset * 2; 
+    size_t pixel_ix = offset;
     size_t bytes_left = length;
     size_t out_ptr_ix = 0;
 
     // read byte for byte
     while (bytes_left != 0) {
-        // grab the value and convert to r/g/b
-        uint16_t pixel = (ei_camera_capture_out[pixel_ix] << 8) | ei_camera_capture_out[pixel_ix+1];
-        uint8_t r, g, b;
-        r = ((pixel >> 11) & 0x1f) << 3;
-        g = ((pixel >> 5) & 0x3f) << 2;
-        b = (pixel & 0x1f) << 3;
-
+        // grab the value and ensure value in [0, 255]
+        uint8_t pixel = ei_camera_capture_out[pixel_ix];
         // then convert to out_ptr format
-        float pixel_f = (r << 16) + (g << 8) + b;
+        float pixel_f = (float) (pixel);
         out_ptr[out_ptr_ix] = pixel_f;
 
         // and go to the next pixel
         out_ptr_ix++;
-        pixel_ix+=2;
+        pixel_ix++;
         bytes_left--;
     }
 
@@ -590,9 +533,9 @@ void cropImage(int srcWidth, int srcHeight, uint8_t *srcImage, int startX, int s
     } // 16-bpp case
 } /* cropImage() */
 
-#if !defined(EI_CLASSIFIER_SENSOR) || EI_CLASSIFIER_SENSOR != EI_CLASSIFIER_SENSOR_CAMERA
-#error "Invalid model for current sensor"
-#endif
+//#if !defined(EI_CLASSIFIER_SENSOR) || EI_CLASSIFIER_SENSOR != EI_CLASSIFIER_SENSOR_CAMERA
+//#error "Invalid model for current sensor"
+//#endif
 
 // OV767X camera library override
 #include <Arduino.h>
@@ -602,70 +545,82 @@ void cropImage(int srcWidth, int srcHeight, uint8_t *srcImage, int startX, int s
 #define portInputRegister(P) ((P == 0) ? &NRF_P0->IN : &NRF_P1->IN)
 
 //
-// OV7675::begin()
+// OV7670::begin()
 //
 // Extends the OV767X library function. Some private variables are needed
-// to use the OV7675::readFrame function.
+// to use the OV7670::readFrame function.
 //
-int OV7675::begin(int resolution, int format, int fps)
+int OV7670::begin(int resolution, int format, int fps)
 {
-    pinMode(OV7670_VSYNC, INPUT);
-    pinMode(OV7670_HREF, INPUT);
-    pinMode(OV7670_PLK, INPUT);
-    pinMode(OV7670_XCLK, OUTPUT);
+    pinMode(OV7670_VSYNC,   INPUT);     // pulses for each new frame : rows start after a VSYNC pulse
+    pinMode(OV7670_HREF,    INPUT);     // HREF pulses that stay high for a whole 'row'
+    pinMode(OV7670_PLK,     INPUT);     // pixel clock : each single pixel value is transmitted during a period of this clock signal
+    pinMode(OV7670_XCLK,    OUTPUT);    // the arduino nano provides the system clck signal to the OV7670 camera
 
-    vsyncPort = portInputRegister(digitalPinToPort(OV7670_VSYNC));
-    vsyncMask = digitalPinToBitMask(OV7670_VSYNC);
-    hrefPort = portInputRegister(digitalPinToPort(OV7670_HREF));
-    hrefMask = digitalPinToBitMask(OV7670_HREF);
-    pclkPort = portInputRegister(digitalPinToPort(OV7670_PLK));
-    pclkMask = digitalPinToBitMask(OV7670_PLK);
+    // in the arduino nano, we map pins to ports like this : [pin number] : {port number, bit number}.
+    // the functions below allow do obtain the values of the mapping, given a pin number as the key :
+    //  - digitalPinToPort(<pin number>)    : returns the port number element of the mapping
+    //  - digitalPinToBitMask(<pin number>) : returns a bitmask, with the respective bit of the mapping set to 1
+    //
+    // e.g., for OV7670_VSYNC (pin number 8) is mapped to {0, 21} : https://docs.arduino.cc/hardware/nano-33-ble-sense
+    //
+    // finally, the portInputRegister(<port number>) returns a ref. of an unsigned (?) that contains the values of the bits currently being 'read' in the port.
+    // for the nRF52840 micro in the nano 33 ble sense, that would be either port 0 or port 1, as there are only 2 ports.
+    m_vsyncPort   = portInputRegister(digitalPinToPort(OV7670_VSYNC));
+    m_vsyncMask   = digitalPinToBitMask(OV7670_VSYNC);
+    m_hrefPort    = portInputRegister(digitalPinToPort(OV7670_HREF));
+    m_hrefMask    = digitalPinToBitMask(OV7670_HREF);
+    m_pclkPort    = portInputRegister(digitalPinToPort(OV7670_PLK));
+    m_pclkMask    = digitalPinToBitMask(OV7670_PLK);
 
-    // init driver to use full image sensor size
-    bool ret = OV767X::begin(VGA, format, fps);
-    width = OV767X::width(); // full sensor width
-    height = OV767X::height(); // full sensor height
-    bytes_per_pixel = OV767X::bytesPerPixel();
-    bytes_per_row = width * bytes_per_pixel; // each pixel is 2 bytes
-    resize_height = 2;
+    bool ret          = OV767X::begin(resolution, format, fps);   // init OV7670 driver to resolution passed as argument
+    m_width           = OV767X::width();                          // sensor width
+    m_height          = OV767X::height();                         // sensor height
+    m_bytes_per_pixel = OV767X::bytesPerPixel();                  // nr. of bytes per pixel
+    m_bytes_per_row   = m_width * m_bytes_per_pixel;              // each pixel is 2 bytes for RGB, 2 byte for grayscale (even though only the 'Y' byte of the YUV422 format is considered in the end)
 
-    buf_mem = NULL;
-    raw_buf = NULL;
-    intrp_buf = NULL;
-    //allocate_scratch_buffs();
+    m_resize_height   = 7; // ???
+
+    m_buf_mem = NULL;
+    m_raw_buf = NULL;
+    m_intrp_buf = NULL;
 
     return ret;
-} /* OV7675::begin() */
 
-int OV7675::allocate_scratch_buffs()
+} /* OV7670::begin() */
+
+int OV7670::allocate_scratch_buffs()
 {
     //ei_printf("allocating buffers..\r\n");
-    buf_rows = height / resize_row_sz * resize_height;
-    buf_size = bytes_per_row * buf_rows;
+    m_buf_rows = (EI_CAMERA_CROP_WIDTH * m_resize_height) / EI_CLASSIFIER_INPUT_HEIGHT;
+    // if the grayscale color format is chosen, we only consider the 'Y' byte of the YUV422 format
+    // as such, although the OV7670 camera transmits 3 byte per pixel, the final buffer will contain 1 byte per pixel
+    uint16_t bytes_per_row = (OV767X::isGrayscale() ? (m_bytes_per_row / 2) : m_bytes_per_row);
+    m_buf_size = bytes_per_row * m_buf_rows;
 
-    buf_mem = ei_malloc(buf_size);
-    if(buf_mem == NULL) {
+    m_buf_mem = ei_malloc(m_buf_size);
+    if(m_buf_mem == NULL) {
         ei_printf("failed to create buf_mem\r\n");
         return false;
     }
-    raw_buf = (uint8_t *)DWORD_ALIGN_PTR((uintptr_t)buf_mem);
+    m_raw_buf = (uint8_t *) DWORD_ALIGN_PTR((uintptr_t) m_buf_mem);
 
     //ei_printf("allocating buffers OK\r\n");
     return 0;
 }
 
-int OV7675::deallocate_scratch_buffs()
+int OV7670::deallocate_scratch_buffs()
 {
     //ei_printf("deallocating buffers...\r\n");
-    ei_free(buf_mem);
-    buf_mem = NULL;
+    ei_free(m_buf_mem);
+    m_buf_mem = NULL;
     
     //ei_printf("deallocating buffers OK\r\n");
     return 0;
 }
 
 //
-// OV7675::readFrame()
+// OV7670::readFrame()
 //
 // Overrides the OV767X library function. Fixes the camera output to be
 // a far more desirable image. This image utilizes the full sensor size
@@ -673,70 +628,146 @@ int OV7675::deallocate_scratch_buffs()
 // Nano we bring in only part of the entire sensor at a time and then
 // interpolate to a lower resolution.
 //
-void OV7675::readFrame(void* buffer)
+void OV7670::readFrame(void* buffer, const int crop_width, const int crop_height)
 {
     allocate_scratch_buffs();
 
-    uint8_t* out = (uint8_t*)buffer;
+    uint8_t* out = (uint8_t*) buffer;
     noInterrupts();
 
-    // Falling edge indicates start of frame
-    while ((*vsyncPort & vsyncMask) == 0); // wait for HIGH
-    while ((*vsyncPort & vsyncMask) != 0); // wait for LOW
+    // look for the rising and falling edge transitions of a VSYNC pulse, indicating a start of a frame, 
+    // as shown in fig. 6 of page 7 of the OV7670 datasheet in http://www.voti.nl/docs/OV7670.pdf
+    while ((*m_vsyncPort & m_vsyncMask) == 0);
+    while ((*m_vsyncPort & m_vsyncMask) != 0);
 
     int out_row = 0;
-    for (int raw_height = 0; raw_height < height; raw_height += buf_rows) {
-        // read in 640xbuf_rows buffer to work with
-        readBuf();
+    int raw_height_init = ( crop_height > 0 ? (m_height - crop_height) / 2 : 0 );
+    int raw_height_end  = ( crop_height > 0 ? raw_height_init + crop_height : m_height );
 
-        resizeImage(width, buf_rows,
-                    raw_buf,
-                    resize_col_sz, resize_height,
-                    &(out[out_row]),
-                    16);
+    int bytes_per_pixel = (OV767X::isGrayscale() ? m_bytes_per_pixel / 2 : m_bytes_per_pixel);
+    int bits_per_pixel = bytes_per_pixel * 8;
+
+    // the loop does the following operations :
+    //  1) capture n rows from the image, using readBuf() (n = m_buf_rows) : the way we calculate m_buf_rows is described in allocate_scratch_buffs()
+    //  2) if the captured rows are within the 'cropping area', crop the middle section of the n rows (forming a [crop_width x m_buf_rows] array), 
+    //      resizeImage() on the cropped area to [EI_CLASSIFIER_INPUT_WIDTH x m_buf_rows], and save it to the buffer passed as argument
+
+    for (int raw_height = 0; raw_height < m_height; ) {
+
+        // ideally, we'd like to read m_buf_rows rows at a time : however by doing so we might be overshooting either raw_height_init or m_height
+        // if we detect an overshoot, adjust the number of rows to read accordingly
+        int buf_rows = m_buf_rows;
         
-        out_row += resize_col_sz * resize_height * bytes_per_pixel; /* resize_col_sz * 2 * 2 */
+        if ((raw_height > raw_height_end) && (raw_height + m_buf_rows > m_height))
+        {
+            buf_rows = m_height - raw_height;
+        }
+        else if ((raw_height < raw_height_init) && (raw_height + m_buf_rows > raw_height_init))
+        {
+            buf_rows = raw_height_init - raw_height;
+        }
+
+        // read in m_width x buf_rows buffer to work with
+        readBuf(buf_rows);
+
+        // if current row is within the desired 'cropping area', crop, resize and add to output array
+        if ((raw_height >= raw_height_init) & (raw_height < raw_height_end))
+        {
+            // crop image to crop_width px x m_buf_rows
+            if (crop_width > 0)
+            {
+                cropImage(m_width, m_buf_rows, 
+                          m_raw_buf, 
+                          (m_width - crop_width) / 2, 0, 
+                          crop_width, m_buf_rows, 
+                          m_raw_buf, 
+                          bits_per_pixel);
+            }
+
+            // resize fraction of image to DST_WIDTH x m_buf_rows
+            resizeImage(crop_width, m_buf_rows,
+                        m_raw_buf,
+                        EI_CLASSIFIER_INPUT_WIDTH, m_resize_height,
+                        &(out[out_row]),
+                        bits_per_pixel);
+            
+            out_row += EI_CLASSIFIER_INPUT_WIDTH * m_resize_height * bytes_per_pixel;
+            
+        }
+
+        // increment raw_height by the pre-determined buf_rows
+        raw_height += buf_rows;
     }
 
     interrupts();
 
     deallocate_scratch_buffs();
-} /* OV7675::readFrame() */
+} /* OV7670::readFrame() */
 
 //
-// OV7675::readBuf()
+// OV7670::readBuf()
 //
-// Extends the OV767X library function. Reads buf_rows VGA rows from the
-// image sensor.
+// Extends the OV767X library function. 
+// Reads buf_rows VGA rows from the image sensor.
 //
-void OV7675::readBuf()
+void OV7670::readBuf(const int buf_rows)
 {
     int offset = 0;
 
-    uint32_t ulPin = 33; // P1.xx set of GPIO is in 'pin' 32 and above
-    NRF_GPIO_Type * port;
-
+    // all the data bits coming from the OV7670 camera (i.e., D0 to D7) are in port 1 of the ardunino nano 33 ble sense
+    // P1.xx set of GPIO is in 'pin' 32 and above, so all we have to do is to get a ref. to port 1.
+    // that can be done by passing a 33 to nrf_gpio_pin_port_decode()
+    uint32_t ulPin = 33;
+    NRF_GPIO_Type* port;
     port = nrf_gpio_pin_port_decode(&ulPin);
 
-    for (int i = 0; i < buf_rows; i++) {
-        // rising edge indicates start of line
-        while ((*hrefPort & hrefMask) == 0); // wait for HIGH
+    for (int i = 0; i < buf_rows; i++) 
+    {
+        // look for a rising edge of the HREF signal, as shown in fig. 6 of page 7 of the OV7670 camera datasheet : http://www.voti.nl/docs/OV7670.pdf
+        // this indicates data for a new row, and stays high for as long as row bytes are transmitted
+        while ((*m_hrefPort & m_hrefMask) == 0);
 
-        for (int col = 0; col < bytes_per_row; col++) {
-            // rising edges clock each data byte
-            while ((*pclkPort & pclkMask) != 0); // wait for LOW
+        for (int col = 0; col < m_bytes_per_row; col++) 
+        {
+            // look for falling edges of the PCLK signal : this indicates the start of a new byte of data
+            while ((*m_pclkPort & m_pclkMask) != 0);
 
             uint32_t in = port->IN; // read all bits in parallel
 
-            in >>= 2; // place bits 0 and 1 at the "bottom" of the register
-            in &= 0x3f03; // isolate the 8 bits we care about
-            in |= (in >> 6); // combine the upper 6 and lower 2 bits
+            // re-arrange the port 1 bits
+            // the two bottom rows in the table below show the mapping between the port 1 bits and Dx pins in the OV7670 camera :
+            // nano port 1 pins : | 04 | 06 | 05 | 03 | 02 | 01 |    |    |    |    |    |    | 00 | 10 |    |    |
+            //                    ---------------------------------------------------------------------------------
+            // nano port 1 bits : | 15 | 14 | 13 | 12 | 11 | 10 | 09 | 08 | 07 | 06 | 05 | 04 | 03 | 02 | 01 | 00 |
+            //        OV7670 Dx : | D7 | D6 | D5 | D4 | D3 | D2 |    |    |    |    |    |    | D1 | D0 |    |    |
 
-            raw_buf[offset++] = in;
+            in >>= 2;           // right-shift port 1 bits by 2, so that to make D1 and D0 the lsbs
+            in &= 0x3f03;       // isolate the 8 bits we care about, i.e. bitmask : 0011 1111 0000 0011
+            in |= (in >> 6);    // combine the upper 6 and lower 2 bits
 
-            while ((*pclkPort & pclkMask) == 0); // wait for HIGH
+            // if the color format is 'grayscale', i.e. YUV422, only consider even bytes (Y values, aka the 'luminance component') and discard the odd bytes (U or V values)
+            // the YUV422 format uses 3 bytes per pixel (Y, U and V values), however U and V calues are shared between two consecutive pixels :
+            //    byte nr : | 00 | 01 | 02 | 03 | 04 | 05 | 06 | 07 | 08 | 09 | 10 | 11 | 12 | ... |
+            //  byte type : | U0 | Y0 | V0 | Y1 | U2 | Y2 | V2 | Y3 | U4 | Y4 | V4 | Y5 | U6 | ... |
+            //
+            // the mapping with pixels is as follows :
+            //  pixel 0 : [Y0, U0, V0]
+            //  pixel 1 : [Y1, U0, V0] 
+            //  pixel 2 : [Y2, U2, V2]
+            //  pixel 3 : [Y3, U2, V2] 
+            //  pixel 3 : [Y4, U4, V4] 
+            //   ... 
+            if (!(col & 0x01) || !OV767X::isGrayscale())
+            {
+                m_raw_buf[offset++] = in;
+            }
+
+            // as shown in fig. 6 of page 7 in the OV7670 datasheet, we wait for a rising edge of the PCLK signal to continue with the next byte
+            while ((*m_pclkPort & m_pclkMask) == 0);
         }
 
-        while ((*hrefPort & hrefMask) != 0); // wait for LOW
+        // continue with the next row after the HREF signal pulse goes to low 
+        // according to fig. 6 of page 7 of OV7670 datasheet, it should stay low for 144 x t_pixel
+        while ((*m_hrefPort & m_hrefMask) != 0);
     }
-} /* OV7675::readBuf() */
+} /* OV7670::readBuf() */
