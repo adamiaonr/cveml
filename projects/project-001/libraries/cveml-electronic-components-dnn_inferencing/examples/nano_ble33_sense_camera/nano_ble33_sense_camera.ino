@@ -37,6 +37,73 @@
 
 #define DWORD_ALIGN_PTR(a)   ((a & 0x3) ?(((uintptr_t)a + 0x4) & ~(uintptr_t)0x3) : a)
 
+#ifdef __VALIDATION
+// example of capacitor image, for validation
+const uint8_t img_sample[EI_CLASSIFIER_INPUT_WIDTH * EI_CLASSIFIER_INPUT_HEIGHT * 1] = { 
+  190, 190, 191, 191, 191, 191, 191, 191, 191, 191, 191, 191, 192,
+  192, 191, 191, 191, 191, 190, 190, 190, 191, 190, 189, 189, 189,
+  189, 188, 191, 191, 191, 191, 191, 191, 191, 191, 191, 191, 192,
+  191, 191, 192, 192, 192, 192, 192, 191, 191, 191, 190, 190, 190,
+  190, 189, 189, 188, 192, 192, 191, 189, 190, 190, 191, 192, 191,
+  191, 191, 191, 192, 192, 192, 192, 192, 192, 192, 191, 191, 190,
+  190, 189, 189, 187, 186, 186, 191, 189, 189, 188, 190, 191, 191,
+  192, 192, 191, 191, 192, 192, 192, 192, 193, 193, 193, 192, 191,
+  190, 190, 189, 188, 188, 185, 184, 184, 189, 182, 192, 190, 189,
+  190, 191, 192, 192, 192, 191, 192, 192, 192, 193, 194, 194, 193,
+  193, 191, 190, 190, 189, 187, 187, 184, 177, 181, 190, 186, 217,
+  193, 187, 191, 191, 192, 192, 193, 192, 192, 192, 192, 192, 194,
+  194, 192, 192, 191, 191, 190, 189, 187, 186, 174, 161, 181, 189,
+  182, 179, 182, 183, 190, 191, 192, 192, 192, 192, 192, 193, 192,
+  193, 193, 194, 192, 192, 192, 191, 190, 189, 188, 186, 179, 170,
+  179, 189, 182, 186, 185, 188, 191, 191, 193, 192, 189, 171, 154,
+  153, 170, 189, 192, 194, 192, 192, 191, 190, 189, 188, 188, 187,
+  185, 184, 183, 191, 191, 190, 190, 190, 191, 192, 193, 186, 133,
+  96,  90,  87,  90, 130, 184, 194, 192, 192, 191, 190, 189, 188,
+  188, 187, 186, 185, 184, 191, 191, 192, 192, 192, 192, 192, 190,
+  149,  92, 100,  99,  86,  81,  82, 132, 187, 192, 192, 191, 190,
+  189, 188, 187, 186, 185, 185, 184, 191, 192, 192, 192, 192, 192,
+  193, 191, 118,  91, 153, 116,  85,  80,  80,  87, 164, 191, 192,
+  191, 190, 189, 189, 188, 187, 186, 186, 185, 192, 192, 192, 192,
+  192, 192, 193, 184, 105,  87, 100,  89,  84,  84,  81,  81, 127,
+  187, 193, 192, 191, 190, 189, 189, 187, 186, 186, 185, 192, 192,
+  191, 191, 191, 194, 195, 176,  97,  81,  82,  80,  85,  99,  91,
+  82, 101, 177, 191, 191, 191, 190, 189, 188, 188, 188, 186, 186,
+  192, 192, 192, 193, 193, 195, 197, 161,  90,  79,  79,  80,  81,
+  89,  98,  88,  88, 160, 190, 191, 191, 190, 189, 189, 188, 187,
+  187, 186, 192, 192, 193, 193, 194, 196, 197, 139,  85,  75,  76,
+  76,  77,  78,  80,  81,  82, 134, 187, 191, 191, 190, 190, 189,
+  189, 189, 188, 188, 192, 193, 193, 194, 194, 195, 195, 126,  80,
+  74,  72,  72,  72,  73,  74,  78,  82, 109, 180, 191, 190, 190,
+  190, 189, 189, 189, 188, 186, 193, 193, 193, 193, 194, 193, 192,
+  120,  79,  83,  86,  82,  77,  74,  75,  79,  85,  97, 175, 191,
+  191, 191, 190, 189, 189, 189, 189, 188, 192, 193, 193, 192, 193,
+  192, 191, 127, 117, 178, 180, 172, 164, 164, 166, 148,  97,  95,
+  176, 191, 191, 191, 190, 189, 189, 189, 189, 189, 191, 192, 193,
+  192, 192, 192, 192, 166, 152, 193, 195, 195, 194, 193, 194, 188,
+  117, 106, 178, 191, 192, 191, 190, 189, 189, 189, 188, 188, 190,
+  191, 191, 191, 192, 193, 194, 189, 152, 187, 193, 194, 193, 194,
+  193, 190, 133, 129, 184, 191, 191, 191, 190, 189, 188, 188, 188,
+  188, 190, 190, 191, 192, 192, 193, 194, 192, 157, 165, 191, 192,
+  192, 193, 193, 191, 148, 142, 187, 191, 191, 191, 190, 190, 189,
+  189, 188, 188, 190, 190, 191, 191, 193, 192, 193, 193, 180, 135,
+  187, 191, 192, 192, 192, 193, 162, 145, 188, 191, 191, 191, 190,
+  190, 190, 190, 189, 188, 189, 191, 191, 191, 192, 192, 193, 193,
+  193, 136, 176, 190, 192, 192, 193, 193, 174, 146, 187, 191, 191,
+  190, 190, 190, 190, 189, 189, 189, 190, 190, 190, 191, 191, 191,
+  191, 191, 192, 156, 157, 189, 191, 192, 192, 192, 178, 137, 185,
+  191, 190, 190, 190, 190, 189, 190, 188, 188, 190, 185, 186, 189,
+  190, 191, 191, 191, 191, 179, 139, 189, 192, 192, 191, 191, 184,
+  130, 181, 190, 190, 189, 190, 188, 185, 185, 188, 188, 189, 183,
+  186, 187, 190, 191, 191, 191, 191, 189, 137, 182, 190, 191, 191,
+  191, 188, 139, 175, 189, 190, 189, 185, 167, 158, 176, 187, 189,
+  189, 186, 186, 186, 189, 190, 190, 190, 191, 190, 173, 185, 190,
+  190, 190, 190, 188, 146, 170, 188, 190, 189, 189, 177, 165, 178,
+  185, 188, 190, 189, 187, 190, 190, 190, 190, 190, 190, 190, 190,
+  190, 190, 190, 190, 190, 189, 172, 174, 188, 189, 189, 189, 176,
+  176, 162, 176, 187
+};
+#endif
+
 /* Edge Impulse ------------------------------------------------------------- */
 class OV7670 : public OV767X {
     public:
@@ -171,6 +238,11 @@ void loop()
 {
     bool stop_inferencing = false;
 
+    if (ei_camera_init() == false) {
+        ei_printf("ERR: Failed to initialize image sensor\r\n");
+        stop_inferencing = true;
+    }
+
     while(stop_inferencing == false) {
         ei_printf("\nStarting inferencing in 2 seconds...\n");
 
@@ -180,11 +252,6 @@ void loop()
         }
 
         ei_printf("Taking photo...\n");
-
-        if (ei_camera_init() == false) {
-            ei_printf("ERR: Failed to initialize image sensor\r\n");
-            break;
-        }
 
         void *snapshot_mem = NULL;
         uint8_t *snapshot_buf = NULL;
@@ -222,14 +289,14 @@ void loop()
             ei_printf("    %s: \t%f\r\n", result.classification[ix].label, result.classification[ix].value);
         }
 
-        Serial.print("\nimg : ");
-        for (int i = 0; i < EI_CLASSIFIER_INPUT_WIDTH * EI_CLASSIFIER_INPUT_HEIGHT; ++i)
-        {
-          char pixel[4];
-          sprintf(pixel, "%d ", ei_camera_capture_out[i]);
-          Serial.print(pixel);
-        }
-        Serial.println("");
+//        Serial.print("\nimg : ");
+//        for (int i = 0; i < EI_CLASSIFIER_INPUT_WIDTH * EI_CLASSIFIER_INPUT_HEIGHT; ++i)
+//        {
+//          char pixel[4];
+//          sprintf(pixel, "%d ", ei_camera_capture_out[i]);
+//          Serial.print(pixel);
+//        }
+//        Serial.println("");
         
 #if EI_CLASSIFIER_HAS_ANOMALY == 1
             ei_printf("    anomaly score: %f\r\n", result.anomaly);
@@ -243,6 +310,7 @@ void loop()
         }
         if (snapshot_mem) ei_free(snapshot_mem);
     }
+    
     ei_camera_deinit();
 }
 
@@ -322,10 +390,13 @@ int ei_camera_cutout_get_data(size_t offset, size_t length, float *out_ptr) {
 
     // read byte for byte
     while (bytes_left != 0) {
-        // grab the value and ensure value in [0, 255]
+#ifdef __VALIDATION
+        uint8_t pixel = img_sample[pixel_ix];
+#else
         uint8_t pixel = ei_camera_capture_out[pixel_ix];
-        // then convert to out_ptr format
-        float pixel_f = (float) (pixel);
+#endif
+        // convert to NN input format (in range [0.0, 1.0])
+        float pixel_f = (float) pixel / 255.f;
         out_ptr[out_ptr_ix] = pixel_f;
 
         // and go to the next pixel
@@ -654,21 +725,8 @@ void OV7670::readFrame(void* buffer, const int crop_width, const int crop_height
 
     for (int raw_height = 0; raw_height < m_height; ) {
 
-        // ideally, we'd like to read m_buf_rows rows at a time : however by doing so we might be overshooting either raw_height_init or m_height
-        // if we detect an overshoot, adjust the number of rows to read accordingly
-        int buf_rows = m_buf_rows;
-        
-        if ((raw_height > raw_height_end) && (raw_height + m_buf_rows > m_height))
-        {
-            buf_rows = m_height - raw_height;
-        }
-        else if ((raw_height < raw_height_init) && (raw_height + m_buf_rows > raw_height_init))
-        {
-            buf_rows = raw_height_init - raw_height;
-        }
-
         // read in m_width x buf_rows buffer to work with
-        readBuf(buf_rows);
+        readBuf(m_buf_rows);
 
         // if current row is within the desired 'cropping area', crop, resize and add to output array
         if ((raw_height >= raw_height_init) & (raw_height < raw_height_end))
@@ -696,7 +754,7 @@ void OV7670::readFrame(void* buffer, const int crop_width, const int crop_height
         }
 
         // increment raw_height by the pre-determined buf_rows
-        raw_height += buf_rows;
+        raw_height += m_buf_rows;
     }
 
     interrupts();
