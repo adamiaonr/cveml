@@ -289,15 +289,6 @@ void loop()
         for (size_t ix = 0; ix < EI_CLASSIFIER_LABEL_COUNT; ix++) {
             ei_printf("    %s: \t%f\r\n", result.classification[ix].label, result.classification[ix].value);
         }
-
-//        Serial.print("\nimg : ");
-//        for (int i = 0; i < EI_CLASSIFIER_INPUT_WIDTH * EI_CLASSIFIER_INPUT_HEIGHT; ++i)
-//        {
-//          char pixel[4];
-//          sprintf(pixel, "%d ", ei_camera_capture_out[i]);
-//          Serial.print(pixel);
-//        }
-//        Serial.println("");
         
 #if EI_CLASSIFIER_HAS_ANOMALY == 1
             ei_printf("    anomaly score: %f\r\n", result.anomaly);
@@ -396,8 +387,13 @@ int ei_camera_cutout_get_data(size_t offset, size_t length, float *out_ptr) {
 #else
         uint8_t pixel = ei_camera_capture_out[pixel_ix];
 #endif
+
+#if EI_CLASSIFIER_SENSOR == EI_CLASSIFIER_SENSOR_UNKNOWN
         // convert to NN input format (in range [0.0, 1.0])
         float pixel_f = (float) pixel / 255.f;
+#else
+        float pixel_f = (float) pixel;
+#endif
         out_ptr[out_ptr_ix] = pixel_f;
 
         // and go to the next pixel
@@ -405,6 +401,17 @@ int ei_camera_cutout_get_data(size_t offset, size_t length, float *out_ptr) {
         pixel_ix++;
         bytes_left--;
     }
+
+#ifdef PRINT_CAPTURE
+    Serial.print("\nimg : ");
+    for (int i = 0; i < EI_CLASSIFIER_INPUT_WIDTH * EI_CLASSIFIER_INPUT_HEIGHT; ++i)
+    {
+        char pixel[4];
+        sprintf(pixel, "%.3f ", out_ptr[i]);
+        Serial.print(pixel);
+    }
+    Serial.println("");
+#endif
 
     // and done!
     return 0;
