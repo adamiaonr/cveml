@@ -21,11 +21,12 @@
  */
 
 /* Includes ---------------------------------------------------------------- */
-#include <cveml-electronic-components-dnn_inferencing.h>
 #include <Arduino_OV767X.h>
 
 #include <stdint.h>
 #include <stdlib.h>
+
+#include "inference.h"
 
 /* Constant variables ------------------------------------------------------- */
 #define EI_CAMERA_RAW_FRAME_BUFFER_COLS     176
@@ -39,7 +40,7 @@
 
 #ifdef __VALIDATION
 // example of capacitor image, for validation
-const uint8_t img_sample[EI_CLASSIFIER_INPUT_WIDTH * EI_CLASSIFIER_INPUT_HEIGHT * 1] = { 
+static const uint8_t img_sample[] = { 
   190, 190, 191, 191, 191, 191, 191, 191, 191, 191, 191, 191, 192,
   192, 191, 191, 191, 191, 190, 190, 190, 191, 190, 189, 189, 189,
   189, 188, 191, 191, 191, 191, 191, 191, 191, 191, 191, 191, 192,
