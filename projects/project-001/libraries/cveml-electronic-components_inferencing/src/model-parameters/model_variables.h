@@ -32,7 +32,7 @@ const uint32_t ei_dsp_config_3_axes_size = 1;
 ei_dsp_config_raw_t ei_dsp_config_3 = {
     1,
     1,
-    1.000f
+    1.0f
 };
 
 #endif // _EI_CLASSIFIER_MODEL_METADATA_H_
