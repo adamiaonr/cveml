@@ -51,8 +51,8 @@ The complete list of models and hyperparameter sets I've tried out is listed bel
 | 12     | "2D conv/pool layer (32 filters, kernel size 3, 1 layer), 2D conv/pool layer (16 filters, kernel size 3, 1 layer), "                                                       | cnn-base                      | 4000                         | 50               |
 
 
-![](../projects/project-001/img/memory-usage.png?raw=true "memory-usage")
-![](../projects/project-001/img/accuracy.png?raw=true "accuracy")
+![](assets/images/memory-usage.png?raw=true "memory-usage")
+![](assets/images/accuracy.png?raw=true "accuracy")
 
 Take-aways:
 
@@ -72,11 +72,9 @@ As such, I've conducted a simple sensitivity analysis using the best performing 
 
 The position sensitivity test consists in deploying models 4 (DNN) and 12 (CNN) in the Arduino, and recording the classification scores on 9 positions in the frame, using a total of 12 different electronic components (4 per non-background class), as shown in the image below.
 
-![](../projects/project-001/img/test-samples.png?raw=true "test-samples")
+![](assets/images/test-samples.png?raw=true "test-samples")
 
 The graph below shows the distributions of the scores assigned to the 'true label', for both the DNN and CNN models.
-
-
 
 #### Saliency Map comparision between DNN and CNN classifiers
 
