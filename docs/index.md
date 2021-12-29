@@ -1,5 +1,3 @@
-# CVEML : Computer Vision with Embedded Machine Learning
-
 This page showcases my projects while taking the Coursera [Computer Vision with Embedded Machine Learning](https://www.coursera.org/learn/computer-vision-with-embedded-machine-learning) course, taught by Shawn Hymmel and supported by the [Edge Impulse](https://www.edgeimpulse.com/) online tool.
 
 ### Why should you care?
@@ -11,72 +9,104 @@ Is this another standard 'hand-in' from a course project? Not quite:
 * I've followed the proposed 'electronic component' classification task, but decided to make it harder by using 4 to 5 different components per class. E.g., I've built the LED dataset with photos from 4 different LEDs, the capacitor dataset with 5 different capacitors, etc.
 * Instead of simply following the tutorial script, I've experimented with different model types and hyperparameter sets, comparing the live performance in the chosen classification task along two metrics: (i) accuracy and (ii) sensitivity to the position of the object in the frame. The results can be interesting to you, and are shown below.
 
-## Index
+## Analysis
 
-## Overview
+### Models, hyperparameters and datasets
 
-### Classification task
+I've recorded the performance of multiple Neural Network models, changing hyperparameters and using different dataset versions. A summary of the models I've experimented with is shown [here](../projects/project-001/README.md).
 
-### Architecture
+#### Summary
 
-### Datasets & augmentation techniques
+* DNNs provide higher accuracies for small datasets, but CNNs are superior to DNNs as we augment the dataset
+* For the larger datasets, the accuracy of a DNN can approximate that of a CNN by increasing the number of neurons at each layer (e.g., 64 to 128 neurons). However, DNNs end up costing more in terms of memory (considering the aggregate of peak RAM usage and flash memory), while still underperforming CNNs for the same dataset.
+* Inference times with CNN models are (at least) 10x larger than DNN models
+* CNN models require more RAM than DNN models
+* Larger kernel sizes in CNN models have a relatively small impact in memory usage, but significantly increases inference time
+* Adding more filters to CNN models has a significant impact in both in inference time and memory usage, with low accuracy gains
 
-### Implementation details
+#### Inference times and memory usage
 
-## Usage
-
-## Results
-
-
-### Models and hyperparameters
-
-I've recorded the performance of multiple Neural Network models, changing hyperparameters and using different versions of the electronic components base dataset published [here](https://github.com/adamiaonr/cveml/tree/main/datasets/electronic-parts-larger).
-
-The complete list of models and hyperparameter sets I've tried out is listed below, along with the estimated inference time (using a Cortex M4F 80 MHz CPU as reference), RAM and flash usage.
-
-| **id** | **model description**                                                                                                                                                      | **model descr. short**        | **dataset size (per class)** | **train epochs** |
-|--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------|------------------------------|------------------|
-| 0      | "2 layers, 64 neuron each"                                                                                                                                                 | dnn-base                      | 50                           | 200              |
-| 1      | "2 layers, 64 neuron each"                                                                                                                                                 | dnn-base                      | 2000                         | 200              |
-| 2      | "2 layers, 64 neuron each"                                                                                                                                                 | dnn-base                      | 3500                         | 100              |
-| 3      | "2 layers, 128 neuron each"                                                                                                                                                | dnn-2x-neuron                 | 2000                         | 200              |
-| 4      | "2 layers, 128 neuron each"                                                                                                                                                | dnn-2x-neuron                 | 3500                         | 100              |
-| 5      | "3 layers, 64 neuron each"                                                                                                                                                 | dnn-extra-layer               | 2000                         | 200              |
-| 6      | "3 layers, 64 neuron each"                                                                                                                                                 | dnn-extra-layer               | 3500                         | 100              |
-| 7      | "2D conv/pool layer (32 filters, kernel size 3, 1 layer), 2D conv/pool layer (16 filters, kernel size 3, 1 layer), "                                                       | cnn-base                      | 50                           | 200              |
-| 8      | "2D conv/pool layer (32 filters, kernel size 5, 1 layer), 2D conv/pool layer (16 filters, kernel size 5, 1 layer), "                                                       | cnn-larger-kernel             | 50                           | 200              |
-| 9      | "2D conv/pool layer (32 filters, kernel size 5, 1 layer), 2D conv/pool layer (16 filters, kernel size 5, 1 layer), 2D conv/pool layer (8 filters, kernel size 5, 1 layer)" | cnn-larger-kernel-extra-layer | 50                           | 200              |
-| 10     | "2D conv/pool layer (64 filters, kernel size 3, 1 layer), 2D conv/pool layer (32 filters, kernel size 3, 1 layer), "                                                       | cnn-double-filters            | 50                           | 200              |
-| 11     | "2D conv/pool layer (32 filters, kernel size 3, 1 layer), 2D conv/pool layer (16 filters, kernel size 3, 1 layer), "                                                       | cnn-base                      | 2000                         | 50               |
-| 12     | "2D conv/pool layer (32 filters, kernel size 3, 1 layer), 2D conv/pool layer (16 filters, kernel size 3, 1 layer), "                                                       | cnn-base                      | 4000                         | 50               |
-
+The estimated inference time (using a Cortex M4F 80 MHz CPU as reference), RAM and flash usage is shown in the images below:
 
 ![](assets/images/memory-usage.png?raw=true "memory-usage")
-![](assets/images/accuracy.png?raw=true "accuracy")
 
-Take-aways:
+#### Model accuracy
 
-* Inference times with CNN models are (at least) 10x larger than DNN models
-* CNN models require more RAM
-* Increasing the kernel size in CNN models has a relatively small impact in memory usage, but significantly increases inference time
-* Increasing the number of filters in CNN models has a significant impact both in inference time and memory usage, without a significant gain in accuracy.
-* A DNN can attain similar accuracy values to that of a CNN by duplicating the number of neurons at each layer (64 to 128 neurons). However, this implies high memory usage costs.
+##### Dataset: `base`
+
+![](assets/images/accuracy-base.png?raw=true "accuracy")
+
+##### Dataset: `augmented-transl-rot`
+
+![](assets/images/accuracy-augmented-transl-rot.png?raw=true "accuracy")
+
+##### Dataset: `augmented-transl-larger`
+
+![](assets/images/accuracy-augmented-transl-larger.png?raw=true "accuracy")
 
 ### Live inference performance
 
-#### Accuracy & sensitivity analysis
+For the live inference performance, I've compared a DNN to a CNN model, both trained with the `augmented-transl-larger` dataset:
 
-After deploying the first DNN model in the Arduino and running live inference, I've noticed that the classification scores where highly sensitive to the position of the object in the frame.
+* DNN : dnn-2x-neuron config (model 4)
+* CNN : cnn-base config (model 12)
 
-As such, I've conducted a simple sensitivity analysis using the best performing DNN and CNN models, using an augmented dataset that translates a non-rotated centered object around the frame, along (x,y) coordinates.
-
-The position sensitivity test consists in deploying models 4 (DNN) and 12 (CNN) in the Arduino, and recording the classification scores on 9 positions in the frame, using a total of 12 different electronic components (4 per non-background class), as shown in the image below.
+I've tested both models by classifying 12 different electronic components (4 per non-background class), as shown in the image below. Furthermore, I've recorded the class prediction scores for each component when positioned at 9 different positions in the frame. The goal was to understand how sensitive each classifier is to movements of the objects in the frame.  
 
 ![](assets/images/test-samples.png?raw=true "test-samples")
 
-The graph below shows the distributions of the scores assigned to the 'true label', for both the DNN and CNN models.
+#### Accuracy
 
-#### Saliency Map comparision between DNN and CNN classifiers
+No surprises here : the CNN model achieved the highest live inference performance:
+
+* **DNN :** 75.83%
+* **CNN :** 96.67%
+
+#### Sensitivity analysis
+
+The table below shows the F1 scores per class, for the DNN and CNN models. Lower F1 scores mean that a certain {model, class} tuple is more sensitive to changes of position in the frame.
+
+##### Summary:
+
+* The CNN model is less sensitive to variations in position of the object in the frame 
+* The analysis of saliency maps generated from a selected set of samples (see below) shows that the CNN classifier looks at very specific pixels for each class, always in the position relative to the object. 
+* In contrast, the saliency maps of the DNN classifier appear more 'chaotic' (I've adapted the 'CNN visualization' notebook to create saliency maps for DNNs, [here]())
+
+##### DNN classifier:
+
+            | background | capacitor          | led                | resistor           
+------------|------------|--------------------|--------------------|--------------------
+ **background** | 12.0       | 0.0                | 0.0                | 0.0                
+ **capacitor**  | 0.0        | 25.0               | 10.0               | 1.0                
+ **led**        | 0.0        | 7.0                | 29.0               | 0.0                
+ **resistor**   | 0.0        | 0.0                | 6.0                | 30.0               
+ **f1 score**   | **1.000**        | **0.735** | **0.716** | **0.895**
+ 
+##### CNN classifier:
+
+            | background | capacitor | led   | resistor 
+------------|------------|-----------|-------|----------
+ **background** | 12.0       | 0.0       | 0.0   | 0.0      
+ **capacitor  | 0.0        | 35.0      | 0.0   | 1.0      
+ **led**        | 1.0        | 2.0       | 33.0  | 0.0      
+ **resistor**   | 0.0        | 0.0       | 0.0   | 36.0     
+ **f1 score**   | **0.960**      | **0.959**     | **0.957** | **0.986**    
+
+
+##### Saliency map for CNN classifier
+
+The title of each image should be read as `<sample-id> : <true-label> (<predicted-label>)`.
+
+![](assets/images/saliency-maps-cnn.png?raw=true "saliency-cnn")
+
+##### Saliency map for DNN classifier
+
+The title of each image should be read as `<sample-id> : <true-label> (<predicted-label>)`.
+
+![](assets/images/saliency-maps-dnn.png?raw=true "saliency-dnn")
 
 #### GRAD-CAM of CNN classifiers
 
+The title of each image should be read as `<sample-id> : <true-label> (<predicted-label>)`.
+
+![](assets/images/grad-cam-heatmaps-overlay-cnn.png?raw=true "saliency-dnn")
