@@ -70,27 +70,27 @@ The table below shows the F1 scores per class, for the DNN and CNN models. Lower
 
 * The CNN model is less sensitive to variations in position of the object in the frame 
 * The analysis of saliency maps generated from a selected set of samples (see below) shows that the CNN classifier looks at very specific pixels for each class, always in the position relative to the object. 
-* In contrast, the saliency maps of the DNN classifier appear more 'chaotic' (I've adapted the 'CNN visualization' notebook to create saliency maps for DNNs, [here]())
+* In contrast, the saliency maps of the DNN classifier appear more 'chaotic' (I've adapted the 'CNN visualization' notebook to create saliency maps for DNNs, [here](../projects/project-001/scripts/notebooks/ei_saliency_and_grad_cam.ipynb))
 
 ##### DNN classifier:
 
-            | background | capacitor          | led                | resistor           
-------------|------------|--------------------|--------------------|--------------------
- **background** | 12.0       | 0.0                | 0.0                | 0.0                
- **capacitor**  | 0.0        | 25.0               | 10.0               | 1.0                
- **led**        | 0.0        | 7.0                | 29.0               | 0.0                
- **resistor**   | 0.0        | 0.0                | 6.0                | 30.0               
- **f1 score**   | **1.000**        | **0.735** | **0.716** | **0.895**
+|            | background | capacitor | led   | resistor |
+|------------|------------|-----------|-------|----------|
+| background | 12.0       | 0.0       | 0.0   | 0.0      |
+| capacitor  | 0.0        | 25.0      | 10.0  | 1.0      |
+| led        | 0.0        | 7.0       | 29.0  | 0.0      |
+| resistor   | 0.0        | 0.0       | 6.0   | 30.0     |
+| f1 score   | 1.000      | 0.735     | 0.716 | 0.896    |
  
 ##### CNN classifier:
 
-            | background | capacitor | led   | resistor 
-------------|------------|-----------|-------|----------
- **background** | 12.0       | 0.0       | 0.0   | 0.0      
- **capacitor  | 0.0        | 35.0      | 0.0   | 1.0      
- **led**        | 1.0        | 2.0       | 33.0  | 0.0      
- **resistor**   | 0.0        | 0.0       | 0.0   | 36.0     
- **f1 score**   | **0.960**      | **0.959**     | **0.957** | **0.986**    
+|            | background | capacitor | led   | resistor |
+|------------|------------|-----------|-------|----------|
+| background | 12.0       | 0.0       | 0.0   | 0.0      |
+| capacitor  | 0.0        | 35.0      | 0.0   | 1.0      |
+| led        | 1.0        | 2.0       | 33.0  | 0.0      |
+| resistor   | 0.0        | 0.0       | 0.0   | 36.0     |
+| f1 score   | 0.960      | 0.959     | 0.957 | 0.986    |
 
 
 ##### Saliency map for CNN classifier
