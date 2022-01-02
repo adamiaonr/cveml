@@ -43,10 +43,10 @@
 #define EI_CLASSIFIER_DATATYPE_FLOAT32           1
 #define EI_CLASSIFIER_DATATYPE_INT8              9
 
-#define EI_CLASSIFIER_PROJECT_ID                 67200
+#define EI_CLASSIFIER_PROJECT_ID                 73212
 #define EI_CLASSIFIER_PROJECT_OWNER              "Damião"
 #define EI_CLASSIFIER_PROJECT_NAME               "cveml-electronic-components"
-#define EI_CLASSIFIER_PROJECT_DEPLOY_VERSION     1
+#define EI_CLASSIFIER_PROJECT_DEPLOY_VERSION     2
 #define EI_CLASSIFIER_NN_INPUT_FRAME_SIZE        784
 #define EI_CLASSIFIER_RAW_SAMPLE_COUNT           784
 #define EI_CLASSIFIER_RAW_SAMPLES_PER_FRAME      1
