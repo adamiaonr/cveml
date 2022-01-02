@@ -70,7 +70,7 @@ The table below shows the F1 scores per class, for the DNN and CNN models. Lower
 
 * The CNN model is less sensitive to variations in position of the object in the frame 
 * The analysis of saliency maps generated from a selected set of samples (see below) shows that the CNN classifier looks at very specific pixels for each class, always in the position relative to the object. 
-* In contrast, the saliency maps of the DNN classifier appear more 'chaotic' (I've adapted the 'CNN visualization' notebook to create saliency maps for DNNs, [here](https://github.com/adamiaonr/cveml/blob/main/projects/project-001/scripts/notebooks/ei_saliency_and_grad_cam.ipynb))
+* In contrast, the saliency maps of the DNN classifier appear more 'chaotic' (I've adapted the 'CNN visualization' notebook to create saliency maps for DNNs, [here](https://github.com/adamiaonr/cveml/blob/main/projects/scripts/notebooks/ei_saliency_and_grad_cam.ipynb))
 
 ##### DNN classifier:
 
