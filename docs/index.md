@@ -13,7 +13,7 @@ Is this another standard 'hand-in' from a course project? Not quite:
 
 ### Models, hyperparameters and datasets
 
-I've recorded the performance of multiple Neural Network models, changing hyperparameters and using different dataset versions. A summary of the models I've experimented with is shown [here](https://github.com/adamiaonr/cveml/blob/main/projects/project-001/scripts/notebooks/data/cveml-dnn-cnn-model-comparison.csv).
+I've recorded the performance of multiple Neural Network models, changing hyperparameters and using different dataset versions. A summary of the models I've experimented with is shown [here](https://github.com/adamiaonr/cveml/blob/main/projects/scripts/data/cveml-dnn-cnn-model-comparison.csv).
 
 #### Summary
 
