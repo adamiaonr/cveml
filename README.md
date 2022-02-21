@@ -1,9 +1,18 @@
 # cveml
 
-This repository contains a set of projects I've developed while taking the [Computer Vision with Embedded Machine Learning](https://www.coursera.org/learn/computer-vision-with-embedded-machine-learning) course, taught by Shawn Hymel and supported by the [Edge Impulse](https://www.edgeimpulse.com/) online tool.
-
 ## Overview
 
+This repository contains a set of projects I've developed while taking the [Computer Vision with Embedded Machine Learning](https://www.coursera.org/learn/computer-vision-with-embedded-machine-learning) course, taught by Shawn Hymel and supported by the [Edge Impulse](https://www.edgeimpulse.com/) online tool.
+The goal of these projects is to deploy different types of image classification models on an microcontroller.
+
+As a use case, the models are trained to classify electronics components such as resistors and capacitors : you can find examples of such components in the `datasets/` folder.
+
+This isn't 'yet another hand-in' from a course project though:
+
+* Instead of using the recommended hardware platforms for the course as of November 2021 (i.e., OpenMV Camera or Raspberry Pi 4 with PiCamera), I've used [an Arduino Nano BLE 33 Sense](https://docs.arduino.cc/hardware/nano-33-ble-sense) connected to an [OV7670 CMOS camera](https://www.openhacks.com/uploadsproductos/ov7670_cmos_camera_module_revc_ds.pdf). 
+* This work shows how to create a data capture and live inference setup with the Arduino + OV7670 camera, and also how to integrate the TensorFlow Lite models trained in Edge Impulse in Arduino.
+* I've followed the proposed 'electronic component' classification task, but decided to make it harder by using 4 to 5 different components per class. E.g., I've built the LED dataset with photos from 4 different LEDs, the capacitor dataset with 5 different capacitors, etc.
+* Instead of simply following the tutorial script, I've experimented with different model types and hyperparameter sets, comparing the live performance in the chosen classification task along two metrics: (i) accuracy and (ii) sensitivity to the position of the object in the frame. 
 The results can be checked in [this page](https://adamiaonr.github.io/cveml/).
 
 ## Hardware Setup
@@ -26,7 +35,8 @@ It is also important to ensure consistent lighting conditions between your train
 
 ### Connections between Arduino Nano 33 BLE Sense and OV7670 camera
 
-The connections between my particular OV7670 camera module and Arduino Nano 33 BLE Sense are shown in the table below. These connections can be found in the examples of the Arduino OV767X library, e.g. in the file `libraries/Arduino_OV767X/examples/CameraCapture/CameraCapture.ino` in the repository).
+The connections between my particular OV7670 camera module and Arduino Nano 33 BLE Sense are shown in the table below. 
+These connections can be found in the examples of the Arduino OV767X library, e.g. in the file `libraries/Arduino_OV767X/examples/CameraCapture/CameraCapture.ino` in the repository.
 
 | Arduino Nano 33 BLE Sense pin | OV7670 CMOs camera pin | OV7670 CMOs camera pin (alt. name) |
 |---|---|---|
@@ -62,6 +72,24 @@ To deploy each project, follow these steps (this assumes a hardware setup as des
 4. Open the Arduino IDE, and add the resulting .zip file, using the `Sketch > Include Library > Add .ZIP Library` feature
 4. Open the sketch via the `File > Examples > <project-name> > nano_ble33_sense_camera` menu
 5. After loading the sketch, deploy via the `Sketch > Upload` menu
+6. The results from live inference can be read from the serial port in the Arduino IDE, using the `Tools > Serial Monitor` menu. 
+
+For the special case of project 3, the results must be visualized with the [Processing](https://processing.org/download) desktop application, using the sketch available in `libraries/Arduino_OV767X/extras/CameraVisualizerRawBytes.pde` (more details on Processing the in the 'Data Capture' section below). 
+
+In this case, the detected objects will be surrounded by squares of different shades of gray, as shown in these images:
+
+![](docs/assets/images/003.png?raw=true)
+![](docs/assets/images/006.png?raw=true)
+![](docs/assets/images/446.png?raw=true)
+![](docs/assets/images/448.png?raw=true)
+
+For reference, the table below shows the correspondence between each line type and classification category for the images above.
+
+| Line type | Category |
+|---|---|
+| Solid gray | LED |
+| Solid black | Capacitor |
+| Dashed black | Resistor |
 
 **Notes:** 
 
@@ -70,19 +98,27 @@ To deploy each project, follow these steps (this assumes a hardware setup as des
 
 ### Data capture
 
-I've captured data for my datasets in `datasets/` directly with the Arduino + OV7670 setup : this way, I've ensured that the data used for training my image classifiers is captured in the same way as in the live inference tests.
+#### Introduction
 
-I've used the [Processing](https://processing.org/download) desktop application (v4.0b2) collect the image data captured by the Arduino. Processing allows you to run Java 'sketches' that connect to the serial port (similarly to the Arduino IDE), read the image data captured and sent by the Arduino over the serial port, allowing you to display, transform and save the images in a typical format such as `.png` or `.jpg`.
+I've captured data for my datasets in `datasets/` directly with the Arduino + OV7670 setup : this way, I've ensured that the data used to train my image classifiers is captured in the same way as the data used in live inference tests.
 
-I've included two sketches in the repository that can be used in conjunction to get you started with your data collection efforts, specifically:
+I've used the [Processing](https://processing.org/download) desktop application (v4.0b2) collect the image data captured by the Arduino. Processing allows you to run Java 'sketches' that: 
 
-* `libraries/Arduino_OV767X/examples/CameraCapture.ino` : runs continuously on the Arduino, performing the following operations :  
+* Connect to the serial port (similarly to the Arduino IDE)
+* Read the image data captured and sent by the Arduino over the serial port
+* Allow you to display, transform and save the images in a typical format such as `.png` or `.jpg`
+
+#### Example
+
+I've included two sketches in the repository, as part of the custom version of the Arduino OV767X library, in the `libraries/Arduino_OV767X` directory. These can be used in conjunction to get you started with your data collection efforts:
+
+* `examples/CameraCapture.ino` : when uploaded to the Arduino, it continuously performs the following operations :  
 
  1. Captures an image in QCIF and grayscale format (176 x 144 px, only the 'luminance' byte of the YUV422 format)
  2. Crops the image at the center to a custom size, using the same routines as in the live inference sketches
  3. Sends the cropped image over the serial port
 
-* `libraries/Arduino_OV767X/extras/CameraVisualizerRawBytes.pde` : 
+* `extras/CameraVisualizerRawBytes.pde` : 
 
  1. Reads an image from the serial port. Image size and format must be specified in the sketch, using the variables below.
  2. Displays the image in a pop-up window
