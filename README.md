@@ -7,11 +7,13 @@ The goal of these projects is to deploy different types of image classification 
 
 As a use case, the models are trained to classify electronics components such as resistors and capacitors : you can find examples of such components in the `datasets/` folder.
 
-This isn't 'yet another hand-in' from a course project though:
+## What's interesting about this?
+
+This isn't 'yet another hand-in' from a course project, and here's why this could be interesting to you:
 
 * Instead of using the recommended hardware platforms for the course as of November 2021 (i.e., OpenMV Camera or Raspberry Pi 4 with PiCamera), I've used [an Arduino Nano BLE 33 Sense](https://docs.arduino.cc/hardware/nano-33-ble-sense) connected to an [OV7670 CMOS camera](https://www.openhacks.com/uploadsproductos/ov7670_cmos_camera_module_revc_ds.pdf). 
 * This work shows how to create a data capture and live inference setup with the Arduino + OV7670 camera, and also how to integrate the TensorFlow Lite models trained in Edge Impulse in Arduino.
-* I've followed the proposed 'electronic component' classification task, but decided to make it harder by using 4 to 5 different components per class. E.g., I've built the LED dataset with photos from 4 different LEDs, the capacitor dataset with 5 different capacitors, etc.
+* I've followed the proposed 'electronic component' classification task, classifying components into 4 buckets : {'background', 'capacitor', 'LED', 'resistor'}. However, I've decided to make it harder by using 4 to 5 different components per class. E.g., I've built the LED dataset with photos from 4 different LEDs, the capacitor dataset with 5 different capacitors, etc.
 * Instead of simply following the tutorial script, I've experimented with different model types and hyperparameter sets, comparing the live performance in the chosen classification task along two metrics: (i) accuracy and (ii) sensitivity to the position of the object in the frame. 
 The results can be checked in [this page](https://adamiaonr.github.io/cveml/).
 
